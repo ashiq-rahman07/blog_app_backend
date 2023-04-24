@@ -1,4 +1,5 @@
 import { uploadPicture } from "../middleware/uploadPictureMiddleware";
+import Comment from "../models/Comment";
 import Post from "../models/Post";
 import User from "../models/User";
 import { fileRemover } from "../utils/fileRemover";
@@ -90,9 +91,70 @@ const updatePost = async(req, res, next)=>{
   };
 };
 
+const deletePost = async(req,res, next)=> {
+
+  try {
+    const post = await Post.findOneAndDelete({slug: req.params.slug})
+    if(!post){
+      const error = new Error("Post was not found");
+      return next(error);
+    }
+    
+     await Comment.deleteMany({post: post._id});
+
+    return res.json({
+      message: "Post is Succesfully deleted"
+    })
+
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getPost = async(req, res, next)=>{
+  try {
+    const post = await Post.findOne({slug: req.params.slug}).populate([
+      {
+        path: 'user',
+        select:['avatar', 'name']
+      },
+      {
+        path: 'comments',
+        match: {
+          check: true,
+          parent: null
+        },
+        populate: [
+          {
+            path: 'user',
+            select: ["avatar", "name"]
+          },
+          {
+            path: 'replies',
+            match: {
+              check:true,
+            }
+          }
+        ]
+      }
+    ]);
+
+    if(!post){
+      const error = new Error("Post was not found");
+      return next(error);
+    }
+
+    return res.json(post);
+    
+  } catch (error) {
+    next(error)
+  }
+}
 
 export {
   createPost,
-  updatePost
+  updatePost,
+  deletePost,
+  getPost
  
 }
